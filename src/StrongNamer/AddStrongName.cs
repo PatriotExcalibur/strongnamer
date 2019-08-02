@@ -7,9 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace StrongNamer
 {
@@ -83,7 +80,7 @@ namespace StrongNamer
             if (CopyLocalFiles != null)
             {
                 NewCopyLocalFiles = new ITaskItem[CopyLocalFiles.Length];
-                for (int i=0; i< CopyLocalFiles.Length; i++)
+                for (int i = 0; i < CopyLocalFiles.Length; i++)
                 {
                     string updatedPath;
                     if (updatedReferencePaths.TryGetValue(CopyLocalFiles[i].ItemSpec, out updatedPath))
@@ -138,72 +135,80 @@ namespace StrongNamer
                 return assemblyItem;
             }
 
-            using (var assembly = AssemblyDefinition.ReadAssembly(assemblyItem.ItemSpec, new ReaderParameters()
+            try
             {
-                AssemblyResolver = resolver
-            }))
-            {
-                if (assembly.Name.HasPublicKey)
+                using (var assembly = AssemblyDefinition.ReadAssembly(assemblyItem.ItemSpec, new ReaderParameters()
                 {
-                    Log.LogMessage(MessageImportance.Low, $"Assembly file '{assemblyItem.ItemSpec}' is already signed.  Skipping.");
-                    return assemblyItem;
-                }
-
-                if (existingAssemblyMvid != Guid.Empty && assembly.MainModule.Mvid == existingAssemblyMvid)
+                    AssemblyResolver = resolver
+                }))
                 {
-                    Log.LogMessage(MessageImportance.Low, $"Signed assembly already exists for '{assemblyItem.ItemSpec}' and the Mvid matches. Using existing signed assembly.");
-
-                    assemblyItem = new TaskItem(assemblyItem);
-                    assemblyItem.ItemSpec = assemblyOutputPath;
-                    return assemblyItem;
-                }
-
-                var token = GetKeyTokenFromKey(key.PublicKey);
-
-                string formattedKeyToken = BitConverter.ToString(token).Replace("-", "");
-                Log.LogMessage(MessageImportance.Low, $"Signing assembly {assembly.FullName} with key with token {formattedKeyToken}");
-
-                assembly.Name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
-                assembly.Name.PublicKey = key.PublicKey;
-                assembly.Name.HasPublicKey = true;
-                assembly.Name.Attributes &= AssemblyAttributes.PublicKey;
-
-                foreach (var reference in assembly.MainModule.AssemblyReferences.Where(r => r.PublicKeyToken == null || r.PublicKeyToken.Length == 0))
-                {
-                    reference.PublicKeyToken = token;
-                    Log.LogMessage(MessageImportance.Low, $"Updating reference in assembly {assembly.FullName} to {reference.FullName} to use token {formattedKeyToken}");
-                }
-
-                string fullPublicKey = BitConverter.ToString(key.PublicKey).Replace("-", "");
-
-                var internalsVisibleToAttributes = assembly.CustomAttributes.Where(att => att.AttributeType.FullName == typeof(System.Runtime.CompilerServices.InternalsVisibleToAttribute).FullName).ToList();
-                foreach (var internalsVisibleToAttribute in internalsVisibleToAttributes)
-                {
-                    string internalsVisibleToAssemblyName = (string)internalsVisibleToAttribute.ConstructorArguments[0].Value;
-                    string newInternalsVisibleToAssemblyName = internalsVisibleToAssemblyName + ", PublicKey=" + fullPublicKey;
-                    Log.LogMessage(MessageImportance.Low, $"Updating InternalsVisibleToAttribute in {assembly.FullName} from {internalsVisibleToAssemblyName} to {newInternalsVisibleToAssemblyName}");
-
-                    internalsVisibleToAttribute.ConstructorArguments[0] = new CustomAttributeArgument(internalsVisibleToAttribute.ConstructorArguments[0].Type, newInternalsVisibleToAssemblyName);
-                }
-
-                Log.LogMessage(MessageImportance.Low, $"Writing signed assembly to {assemblyOutputPath}");
-                try
-                {
-                    assembly.Write(assemblyOutputPath, new WriterParameters()
+                    if (assembly.Name.HasPublicKey)
                     {
-                        StrongNameKeyPair = key
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Log.LogMessage(MessageImportance.High, $"Failed to write signed assembly to '{assemblyOutputPath}'. {ex}");
-                    File.Delete(assemblyOutputPath);
-                }
+                        Log.LogMessage(MessageImportance.Low, $"Assembly file '{assemblyItem.ItemSpec}' is already signed.  Skipping.");
+                        return assemblyItem;
+                    }
 
-                var ret = new TaskItem(assemblyItem);
-                ret.ItemSpec = assemblyOutputPath;
+                    if (existingAssemblyMvid != Guid.Empty && assembly.MainModule.Mvid == existingAssemblyMvid)
+                    {
+                        Log.LogMessage(MessageImportance.Low, $"Signed assembly already exists for '{assemblyItem.ItemSpec}' and the Mvid matches. Using existing signed assembly.");
 
-                return ret;
+                        assemblyItem = new TaskItem(assemblyItem);
+                        assemblyItem.ItemSpec = assemblyOutputPath;
+                        return assemblyItem;
+                    }
+
+                    var token = GetKeyTokenFromKey(key.PublicKey);
+
+                    string formattedKeyToken = BitConverter.ToString(token).Replace("-", "");
+                    Log.LogMessage(MessageImportance.Low, $"Signing assembly {assembly.FullName} with key with token {formattedKeyToken}");
+
+                    assembly.Name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
+                    assembly.Name.PublicKey = key.PublicKey;
+                    assembly.Name.HasPublicKey = true;
+                    assembly.Name.Attributes &= AssemblyAttributes.PublicKey;
+
+                    foreach (var reference in assembly.MainModule.AssemblyReferences.Where(r => r.PublicKeyToken == null || r.PublicKeyToken.Length == 0))
+                    {
+                        reference.PublicKeyToken = token;
+                        Log.LogMessage(MessageImportance.Low, $"Updating reference in assembly {assembly.FullName} to {reference.FullName} to use token {formattedKeyToken}");
+                    }
+
+                    string fullPublicKey = BitConverter.ToString(key.PublicKey).Replace("-", "");
+
+                    var internalsVisibleToAttributes = assembly.CustomAttributes.Where(att => att.AttributeType.FullName == typeof(System.Runtime.CompilerServices.InternalsVisibleToAttribute).FullName).ToList();
+                    foreach (var internalsVisibleToAttribute in internalsVisibleToAttributes)
+                    {
+                        string internalsVisibleToAssemblyName = (string)internalsVisibleToAttribute.ConstructorArguments[0].Value;
+                        string newInternalsVisibleToAssemblyName = internalsVisibleToAssemblyName + ", PublicKey=" + fullPublicKey;
+                        Log.LogMessage(MessageImportance.Low, $"Updating InternalsVisibleToAttribute in {assembly.FullName} from {internalsVisibleToAssemblyName} to {newInternalsVisibleToAssemblyName}");
+
+                        internalsVisibleToAttribute.ConstructorArguments[0] = new CustomAttributeArgument(internalsVisibleToAttribute.ConstructorArguments[0].Type, newInternalsVisibleToAssemblyName);
+                    }
+
+                    Log.LogMessage(MessageImportance.Low, $"Writing signed assembly to {assemblyOutputPath}");
+                    try
+                    {
+                        assembly.Write(assemblyOutputPath, new WriterParameters()
+                        {
+                            StrongNameKeyPair = key
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.LogMessage(MessageImportance.High, $"Failed to write signed assembly to '{assemblyOutputPath}'. {ex}");
+                        File.Delete(assemblyOutputPath);
+                    }
+
+                    var ret = new TaskItem(assemblyItem);
+                    ret.ItemSpec = assemblyOutputPath;
+
+                    return ret;
+                }
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                Log.LogMessage(MessageImportance.Normal, $"Assembly file '{assemblyItem.ItemSpec}' failed to load. (Probably Obfuscated) Skipping.");
+                return assemblyItem;
             }
         }
 
