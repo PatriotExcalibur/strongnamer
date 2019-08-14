@@ -1,4 +1,5 @@
 ﻿using Mono.Cecil;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,7 +10,7 @@ namespace StrongNamer
     {
         readonly string[] _assemblyPaths;
         List<AssemblyDefinition> _assemblies = null;
-        
+
         public StrongNamerAssemblyResolver(IEnumerable<string> assemblyPaths) : base()
         {
             _assemblyPaths = assemblyPaths.ToArray();
@@ -34,7 +35,15 @@ namespace StrongNamer
                 {
                     _assemblies = _assemblyPaths
                         .Where(File.Exists)
-                        .Select(AssemblyDefinition.ReadAssembly)
+                        .Select(a =>
+                        {
+                            try
+                            {
+                                return AssemblyDefinition.ReadAssembly(a);
+                            }
+                            catch (ArgumentOutOfRangeException) { return null; }
+                        })
+                        .Where(asm => asm != null)
                         .ToList();
                 }
 
@@ -48,7 +57,8 @@ namespace StrongNamer
             return Resolve(name, new ReaderParameters());
         }
 
-        public new void Dispose(bool disposing) {
+        public new void Dispose(bool disposing)
+        {
             base.Dispose(disposing);
             if (_assemblies != null)
             {
