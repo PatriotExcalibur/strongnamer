@@ -40,7 +40,7 @@ namespace StrongNamer
                             try
                             {
                                 return AssemblyDefinition.ReadAssembly(a);
-                            }
+                            } //when a version greater than mono cecil 0.10.4 comes out we can remove this check
                             catch (ArgumentOutOfRangeException) { return null; }
                         })
                         .Where(asm => asm != null)
@@ -57,14 +57,14 @@ namespace StrongNamer
             return Resolve(name, new ReaderParameters());
         }
 
-        public new void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
             if (_assemblies != null)
             {
                 for (int i = 0; i < _assemblies.Count; i++)
                 {
-                    _assemblies.ElementAtOrDefault(i)?.Dispose();
+                    _assemblies[i]?.Dispose();
                 }
             }
         }
