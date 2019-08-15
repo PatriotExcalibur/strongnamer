@@ -1,7 +1,5 @@
-using System.Resources;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+using System.Resources;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
@@ -28,5 +26,5 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 
 //  No need to manually update this, build process does it automatically
-[assembly: AssemblyVersion("0.0.8.2")]
-[assembly: AssemblyFileVersion("0.0.8.2")]
+[assembly: AssemblyVersion("0.0.8.3")]
+[assembly: AssemblyFileVersion("0.0.8.3")]
