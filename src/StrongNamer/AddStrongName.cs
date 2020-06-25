@@ -69,6 +69,7 @@ namespace StrongNamer
                 for (int i = 0; i < Assemblies.Length; i++)
                 {
                     SignedAssembliesToReference[i] = ProcessAssembly(Assemblies[i], key, resolver);
+
                     if (SignedAssembliesToReference[i].ItemSpec != Assemblies[i].ItemSpec)
                     {
                         //  Path was updated to signed version
@@ -205,9 +206,9 @@ namespace StrongNamer
                     return ret;
                 }
             }
-            catch (ArgumentOutOfRangeException)
+            catch (Exception ex)
             {
-                Log.LogMessage(MessageImportance.Normal, $"Assembly file '{assemblyItem.ItemSpec}' failed to load. (Probably Obfuscated) Skipping.");
+                Log.LogErrorFromException(ex, true, true, assemblyItem.ItemSpec);
                 return assemblyItem;
             }
         }
